@@ -597,8 +597,16 @@ ospfs_unlink(struct inode *dirino, struct dentry *dentry)
 static uint32_t
 allocate_block(void)
 {
-	/* EXERCISE: Your code here */
-	return 0;
+    int k;
+    for(k = 0; k < ((ospfs_super->os_firstinob - 2) * OSPFS_BLKSIZE);k++)
+    {
+        if(bitvector_test(ospfs_data[OSPFS_BLKSIZE*2],k) == 1)
+        {   
+            bitvector_clear(ospfs_data[OSPFS_BLKSIZE*2],k);
+            return k;
+        }
+    }
+    return 0;
 }
 
 
@@ -616,7 +624,12 @@ allocate_block(void)
 static void
 free_block(uint32_t blockno)
 {
-	/* EXERCISE: Your code here */
+    if(blockno < (ospfs_super->os_firstinob + ospfs_super->os_ninodes))
+    {
+         //TODO:crash? some error?
+        eprintk("tried to free inappropriate blockno");
+    }
+    bitvector_set(ospfs_data[OSPFS_BLKSIZE*2],blockno);
 }
 
 
