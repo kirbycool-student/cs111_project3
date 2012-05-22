@@ -1,26 +1,22 @@
 # Fill in your name, student ID, and email address in this file.
-# If you are working in a team, fill out the information for both team 
-# members.
 
-# SUBMIT THE LAB ONLY ONCE (from only one partner). This file will be
-# automatically parsed in order to give both team members credit for the
-# lab.
+# If you are working in a team, remove the # signs from the three lines for
+# partner 2 below and fill them in as well. Please submit the lab to CourseWeb
+# only once (from only one partner). This file will be automatically parsed in
+# order to give both team members credit for the lab.
 
-# If you did one or more extra credit problems, indicate which one in the
-# appropriate section below (remove the # sign first). If you have any other
-# information you'd like us to know, please add it at the end of the file.
+# If you have any other information you'd like us to know, please add it at
+# the end of the file.
 
 # Partner 1
-Name: 
-Student ID: 
-Email: 
+Name: Taylor Lee 
+Student ID: 303942204 
+Email: tay333@gmail.com
 
-# Partner 2 (if you're working in a team)
-Name: 
-Student ID: 
-Email: 
+# Partner 2
+Name: Kirby Cool
+Student ID: 703892301
+Email: kirbydcool@gmail.com
 
-# Extra credit problems
-#Extra credit problem: none
 
-# Add any other information you'd like us to know below this line.
+# Add any other information you'd like us to have below this line.
