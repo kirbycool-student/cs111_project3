@@ -885,7 +885,7 @@ ospfs_read(struct file *filp, char __user *buffer, size_t count, loff_t *f_pos)
 
         if ( copy_to_user(buffer, data, n) )
         {
-            retval = -EIO;
+            retval = -EFAULT;
         }
 
 		buffer += n;
