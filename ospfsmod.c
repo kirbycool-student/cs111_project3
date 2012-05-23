@@ -454,8 +454,9 @@ ospfs_dir_readdir(struct file *filp, void *dirent, filldir_t filldir)
 		 * the loop.  For now we do this all the time.
 		 *
 		 * EXERCISE: Your code here */
-        if ( f_pos >= entry_oi->oi_size-1 )
-		{   
+        if ( f_pos-2 >= entry_oi->oi_size-1 )
+		{
+            eprintk("we reached the end of the directory\n");   
             r = 1;		
 		    break;	
         }
@@ -481,25 +482,32 @@ ospfs_dir_readdir(struct file *filp, void *dirent, filldir_t filldir)
 		 */
 
 		/* EXERCISE: Your code here */
-        od = ospfs_inode_data( dir_oi, f_pos );
+        od = ospfs_inode_data( dir_oi, f_pos-2 );
+        eprintk( "inode number=%d\n", od->od_ino);
+        eprintk( "directory '%s'\n", od->od_name);
         entry_oi = ospfs_inode( od->od_ino );
+        eprintk("set inode pointers\n");
         
-        if ( entry_oi == 0 )
+        if ( od->od_ino == 0 )
         {
             f_pos += sizeof( ospfs_direntry_t );
+            eprintk("skipping this entry\n");
             continue;
         }
+        eprintk("checked inode number\n");
         //find name length
         for ( i = 0; i < OSPFS_MAXNAMELEN + 1; i++ )
         {
             if ( od->od_name[i] == '\0' )
                 break;
         }
+        eprintk("name length found\n");
         //find file type
         switch (entry_oi->oi_ftype)
         {
             case OSPFS_FTYPE_REG:
                 entrytype = DT_REG;
+                eprintk("is a regular file\n");
                 break;
             case OSPFS_FTYPE_DIR:
                 entrytype = DT_DIR;
@@ -508,12 +516,9 @@ ospfs_dir_readdir(struct file *filp, void *dirent, filldir_t filldir)
                 entrytype = DT_LNK;
                 break;
         };
-        if( filldir( od, od->od_name, i, f_pos, od->od_ino, entrytype ) < 0 )
-        {
-            f_pos += sizeof( ospfs_direntry_t );
-            r = 0;
-            break;
-        }
+        eprintk("found filldir data\n");
+        ok_so_far = filldir( od, od->od_name, i, f_pos, od->od_ino, entrytype );
+        eprintk("ok_so_far=%d\n", ok_so_far);
         f_pos += sizeof( ospfs_direntry_t );
         
 	}
