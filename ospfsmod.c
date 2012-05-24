@@ -665,7 +665,7 @@ free_block(uint32_t blockno)
 static int32_t
 indir2_index(uint32_t b)
 {
-    if(d < 90)
+    if(b < 90)
         return -1;
     return 0;	
 }
@@ -685,9 +685,9 @@ indir2_index(uint32_t b)
 static int32_t
 indir_index(uint32_t b)
 {
-    if( d < 10)
+    if( b < 10)
         return -1;
-    else if (d < 90)
+    else if (b < 90)
         return 0;
     return (b - 90) / 80;	
 }
