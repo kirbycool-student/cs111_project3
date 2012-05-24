@@ -423,6 +423,7 @@ ospfs_dir_lookup(struct inode *dir, struct dentry *dentry, struct nameidata *ign
 static int
 ospfs_dir_readdir(struct file *filp, void *dirent, filldir_t filldir)
 {
+    //eprintk("attempting to read a directory\n");
 	struct inode *dir_inode = filp->f_dentry->d_inode;
 	ospfs_inode_t *dir_oi = ospfs_inode(dir_inode->i_ino);
 	uint32_t f_pos = filp->f_pos;
@@ -445,16 +446,18 @@ ospfs_dir_readdir(struct file *filp, void *dirent, filldir_t filldir)
 
 	// actual entries
 	while (r == 0 && ok_so_far >= 0 && f_pos >= 2) {
-		int i;
+		int namelength;
         int entrytype;
         ospfs_direntry_t *od;
 		ospfs_inode_t *entry_oi;
+        
+        //eprintk("ok_so_far=%d\n", ok_so_far);
 
 		/* If at the end of the directory, set 'r' to 1 and exit
 		 * the loop.  For now we do this all the time.
 		 *
 		 * EXERCISE: Your code here */
-        if ( f_pos-2 >= entry_oi->oi_size-1 )
+        if ( f_pos-2 >= dir_oi->oi_size-1 )
 		{
             eprintk("we reached the end of the directory\n");   
             r = 1;		
@@ -483,44 +486,48 @@ ospfs_dir_readdir(struct file *filp, void *dirent, filldir_t filldir)
 
 		/* EXERCISE: Your code here */
         od = ospfs_inode_data( dir_oi, f_pos-2 );
-        eprintk( "inode number=%d\n", od->od_ino);
-        eprintk( "directory '%s'\n", od->od_name);
-        entry_oi = ospfs_inode( od->od_ino );
-        eprintk("set inode pointers\n");
+        //eprintk( "inode number=%d\n", od->od_ino);
+        //eprintk( "directory '%s'\n", od->od_name);
+        //entry_oi = ospfs_inode( od->od_ino );
+        //eprintk("set inode pointers\n");
         
         if ( od->od_ino == 0 )
         {
             f_pos += sizeof( ospfs_direntry_t );
-            eprintk("skipping this entry\n");
+            //eprintk("skipping this entry\n");
             continue;
         }
-        eprintk("checked inode number\n");
+        //eprintk("checked inode number\n");
         //find name length
-        for ( i = 0; i < OSPFS_MAXNAMELEN + 1; i++ )
+        for ( namelength = 0; namelength < OSPFS_MAXNAMELEN + 1; namelength++ )
         {
-            if ( od->od_name[i] == '\0' )
+            if ( od->od_name[namelength] == '\0' )
                 break;
         }
-        eprintk("name length found\n");
+        namelength++;
+        //eprintk("name length=%d\n", namelength);
         //find file type
         switch (entry_oi->oi_ftype)
         {
             case OSPFS_FTYPE_REG:
                 entrytype = DT_REG;
-                eprintk("is a regular file\n");
+                //eprintk("is a regular file\n");
                 break;
             case OSPFS_FTYPE_DIR:
                 entrytype = DT_DIR;
+                //eprintk("is a directory\n");
                 break;
             case OSPFS_FTYPE_SYMLINK:
                 entrytype = DT_LNK;
                 break;
         };
-        eprintk("found filldir data\n");
-        ok_so_far = filldir( od, od->od_name, i, f_pos, od->od_ino, entrytype );
-        eprintk("ok_so_far=%d\n", ok_so_far);
-        f_pos += sizeof( ospfs_direntry_t );
-        
+        //eprintk("name=%s, length=%d, f_pos=%d, ino=%d, type=%d\n", od->od_name, namelength, f_pos, od->od_ino, entrytype);
+        ok_so_far = filldir( dirent, od->od_name, namelength, f_pos, od->od_ino, entrytype );
+        //eprintk("ok_so_far returned %d\n", ok_so_far);
+        if ( ok_so_far == 0 )
+        {
+            f_pos += sizeof( ospfs_direntry_t );
+        }
 	}
 
 	// Save the file position and return!
@@ -1055,6 +1062,7 @@ ospfs_read(struct file *filp, char __user *buffer, size_t count, loff_t *f_pos)
 static ssize_t
 ospfs_write(struct file *filp, const char __user *buffer, size_t count, loff_t *f_pos)
 {
+    eprintk("attempting write\n");
 	ospfs_inode_t *oi = ospfs_inode(filp->f_dentry->d_inode->i_ino);
 	int retval = 0;
 	size_t amount = 0;
@@ -1063,23 +1071,34 @@ ospfs_write(struct file *filp, const char __user *buffer, size_t count, loff_t *
 	// use struct file's f_flags field and the O_APPEND bit.
 	/* EXERCISE: Your code here */
 
-    int append_flag = filp->f_flags & O_APPEND;
+    if ( filp->f_flags & O_APPEND == 0 )
+    {
+        *f_pos = oi->oi_size;
+    }
 
 	// If the user is writing past the end of the file, change the file's
 	// size to accomodate the request.  (Use change_size().)
 	/* EXERCISE: Your code here */
-    if ( (*f_pos + count + 1) > oi->oi_size )
+        eprintk("size is %d", oi->oi_size);
+    if ( (*f_pos + count) > oi->oi_size )
     {
-        oi->oi_size = *f_pos + count + 1;
+        oi->oi_size = *f_pos + count;   //extra space for ending newline
+        eprintk("size changed to %d\n", oi->oi_size);
     }
-
+    
 	// Copy data block by block
+        eprintk("f_pos=%d\n", *f_pos);
+        eprintk("amount=%d\n", amount);
+        eprintk("count=%d\n", count);
 	while (amount < count && retval >= 0) {
 		uint32_t blockno = ospfs_inode_blockno(oi, *f_pos);
 		uint32_t n;
 		char *data;
-
-		if (blockno == 0) {
+        
+        eprintk("writing to block %d\n", blockno);
+		
+        if (blockno == 0) {
+            eprintk("bigass error\n");
 			retval = -EIO;
 			goto done;
 		}
@@ -1105,13 +1124,19 @@ ospfs_write(struct file *filp, const char __user *buffer, size_t count, loff_t *
 
         if ( copy_from_user(data, buffer, n) )
         {
+            eprintk("bigass error on copy\n");
             retval = -EFAULT;
         }
 
 		buffer += n;
 		amount += n;
 		*f_pos += n;
-	}
+        //if ( amount >= count )
+        //{
+        //    eprintk("appending newline\n");
+        //    copy_from_user(data + *f_pos % OSPFS_BLKSIZE, newline, 1);     //appedn newline to the end
+        //}	
+    }
 
     done:
 	return (retval >= 0 ? amount : retval);
