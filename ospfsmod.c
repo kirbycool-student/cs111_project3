@@ -986,9 +986,9 @@ ospfs_write(struct file *filp, const char __user *buffer, size_t count, loff_t *
 	// size to accomodate the request.  (Use change_size().)
 	/* EXERCISE: Your code here */
         eprintk("size is %d", oi->oi_size);
-    if ( (*f_pos + count + 1) > oi->oi_size )
+    if ( (*f_pos + count) > oi->oi_size )
     {
-        oi->oi_size = *f_pos + count + 1;   //extra space for ending newline
+        oi->oi_size = *f_pos + count;   //extra space for ending newline
         eprintk("size changed to %d\n", oi->oi_size);
     }
     
@@ -1004,6 +1004,7 @@ ospfs_write(struct file *filp, const char __user *buffer, size_t count, loff_t *
         eprintk("writing to block %d\n", blockno);
 		
         if (blockno == 0) {
+            eprintk("bigass error\n");
 			retval = -EIO;
 			goto done;
 		}
@@ -1029,6 +1030,7 @@ ospfs_write(struct file *filp, const char __user *buffer, size_t count, loff_t *
 
         if ( copy_from_user((data + *f_pos % OSPFS_BLKSIZE), buffer, n) )
         {
+            eprintk("bigass error on copy\n");
             retval = -EFAULT;
         }
 
