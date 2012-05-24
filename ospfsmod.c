@@ -598,11 +598,14 @@ static uint32_t
 allocate_block(void)
 {
     int k;
-    for(k = 0; k < ((ospfs_super->os_firstinob - 2) * OSPFS_BLKSIZE);k++)
+    for(k = ospfs_super->os_firstinob + (ospfs_super->os_ninodes / 16); 
+        k < ospfs_super->os_nblocks;
+        k++)
     {
-        if(bitvector_test(ospfs_data[OSPFS_BLKSIZE*2],k) == 1)
+        if(bitvector_test(ospfs_block(2),k) == 1)
         {   
-            bitvector_clear(ospfs_data[OSPFS_BLKSIZE*2],k);
+            bitvector_clear(ospfs_block(2),k);
+            memset(ospfs_block(k),0,OSPFS_BLKSIZE);
             return k;
         }
     }
@@ -624,12 +627,12 @@ allocate_block(void)
 static void
 free_block(uint32_t blockno)
 {
-    if(blockno < (ospfs_super->os_firstinob + ospfs_super->os_ninodes))
+    if(blockno < (ospfs_super->os_firstinob + (ospfs_super->os_ninodes / 16)))
     {
-         //crash? some error?
         eprintk("tried to free inappropriate blockno");
+        exit(1);
     }
-    bitvector_set(ospfs_data[OSPFS_BLKSIZE*2],blockno);
+    bitvector_set(ospfs_block(2),blockno);
 }
 
 
