@@ -626,7 +626,7 @@ free_block(uint32_t blockno)
 {
     if(blockno < (ospfs_super->os_firstinob + ospfs_super->os_ninodes))
     {
-         //TODO:crash? some error?
+         //crash? some error?
         eprintk("tried to free inappropriate blockno");
     }
     bitvector_set(ospfs_data[OSPFS_BLKSIZE*2],blockno);
@@ -665,8 +665,9 @@ free_block(uint32_t blockno)
 static int32_t
 indir2_index(uint32_t b)
 {
-	// Your code here.
-	return -1;
+    if(d < 90)
+        return -1;
+    return 0;	
 }
 
 
@@ -684,8 +685,11 @@ indir2_index(uint32_t b)
 static int32_t
 indir_index(uint32_t b)
 {
-	// Your code here.
-	return -1;
+    if( d < 10)
+        return -1;
+    else if (d < 90)
+        return 0;
+    return (b - 90) / 80;	
 }
 
 
@@ -701,8 +705,12 @@ indir_index(uint32_t b)
 static int32_t
 direct_index(uint32_t b)
 {
-	// Your code here.
-	return -1;
+    if( b < 10)
+        return b;
+    else if (b < 90)
+        return b - 10;
+    else
+        return (b - 90) % 80;	
 }
 
 
@@ -915,8 +923,6 @@ ospfs_read(struct file *filp, char __user *buffer, size_t count, loff_t *f_pos)
 		uint32_t n;
 		char *data;
 
-        eprintk("reading block %d\n", blockno);
-
 		// ospfs_inode_blockno returns 0 on error
 		if (blockno == 0) {
 			retval = -EIO;
@@ -943,7 +949,7 @@ ospfs_read(struct file *filp, char __user *buffer, size_t count, loff_t *f_pos)
             n = remaining;
         }
 
-        if ( copy_to_user(buffer, data + *f_pos % OSPFS_BLKSIZE, n) )
+        if ( copy_to_user(buffer, data, n) )
         {
             retval = -EFAULT;
         }
@@ -982,42 +988,27 @@ ospfs_write(struct file *filp, const char __user *buffer, size_t count, loff_t *
 	int retval = 0;
 	size_t amount = 0;
 
-    char newline[1] = "\n";
-    eprintk("amount=%d\n", amount);
-    
-
 	// Support files opened with the O_APPEND flag.  To detect O_APPEND,
 	// use struct file's f_flags field and the O_APPEND bit.
 	/* EXERCISE: Your code here */
 
-    //if ( filp->f_flags & O_APPEND == 0 )
-    //{
-    //    *f_pos = oi->oi_size;
-    //}
+    int append_flag = filp->f_flags & O_APPEND;
 
 	// If the user is writing past the end of the file, change the file's
 	// size to accomodate the request.  (Use change_size().)
 	/* EXERCISE: Your code here */
-        eprintk("size is %d", oi->oi_size);
-    if ( (*f_pos + count) > oi->oi_size )
+    if ( (*f_pos + count + 1) > oi->oi_size )
     {
-        oi->oi_size = *f_pos + count;   //extra space for ending newline
-        eprintk("size changed to %d\n", oi->oi_size);
+        oi->oi_size = *f_pos + count + 1;
     }
-    
+
 	// Copy data block by block
-        eprintk("f_pos=%d\n", *f_pos);
-        eprintk("amount=%d\n", amount);
-        eprintk("count=%d\n", count);
 	while (amount < count && retval >= 0) {
 		uint32_t blockno = ospfs_inode_blockno(oi, *f_pos);
 		uint32_t n;
 		char *data;
-        
-        eprintk("writing to block %d\n", blockno);
-		
-        if (blockno == 0) {
-            eprintk("bigass error\n");
+
+		if (blockno == 0) {
 			retval = -EIO;
 			goto done;
 		}
@@ -1041,21 +1032,15 @@ ospfs_write(struct file *filp, const char __user *buffer, size_t count, loff_t *
             n = remaining;
         }
 
-        if ( copy_from_user((data + *f_pos % OSPFS_BLKSIZE), buffer, n) )
+        if ( copy_from_user(data, buffer, n) )
         {
-            eprintk("bigass error on copy\n");
             retval = -EFAULT;
         }
 
 		buffer += n;
 		amount += n;
 		*f_pos += n;
-        //if ( amount >= count )
-        //{
-        //    eprintk("appending newline\n");
-        //    copy_from_user(data + *f_pos % OSPFS_BLKSIZE, newline, 1);     //appedn newline to the end
-        //}	
-    }
+	}
 
     done:
 	return (retval >= 0 ? amount : retval);
