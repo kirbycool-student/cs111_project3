@@ -755,10 +755,78 @@ add_block(ospfs_inode_t *oi)
 	uint32_t n = ospfs_size2nblocks(oi->oi_size);
 
 	// keep track of allocations to free in case of -ENOSPC
-	uint32_t *allocated[2] = { 0, 0 };
+	uint32_t *allocated[3] = { 0, 0, 0 };
 
-	/* EXERCISE: Your code here */
-	return -EIO; // Replace this line
+    uint32_t ind2 = indir2_index(n);
+    uint32_t ind = indir_index(n);
+    uint32_t d = direct_index(n);
+    
+    if(d < 0)
+        return -EIO;
+
+    allocated[0] = allocate_block();
+    if(allocated[0] == 0)
+    {
+        return -ENOSPC;
+    }
+
+    if(ind2 == -1)
+    {
+        if(ind == -1)
+        {
+            oi->oi_direct[d] = ospfs_block(allocated[0]);
+        }   
+        else if (ind == 0)
+        {
+            if(oi->oi_indirect == NULL)
+            {
+                allocated[1] = allocate_block();
+                if(allocated[1] == 0)
+                {
+                    free_block(allocated[0]); 
+                    return -ENOSPC;
+                }
+                oi->oi_indirect = ospfs_block(allocated[1]);
+            }
+            ((uint32_t *) oi->oi_indirect)[d] = ospfs_block(allocated[0]);
+        }
+        else
+        {
+            return -EIO;
+        } 
+    }
+    else
+    {
+        if( ind < 0 || ind2 != 0)
+            return -EIO;
+        if(oi->oi_indirect2 == NULL)
+        {
+            allocated[2] = allocate_block();
+            if(allocated[2] == 0)
+            {
+                free_block(allocated[0]);
+                return -ENOSPC;
+            }
+            oi->oi_indirect2 = ospfs_block(allocated[2]);
+        }
+        if(((uint32_t *) oi->oi_indirect2)[ind] == NULL)
+        {
+            allocated[1] = allocate_block();
+            if(allocated[1] == 0)
+            {
+                free_block(allocated[0]);
+                if(allocated[2] != 0)
+                {
+                    free_block(allocated[2]);
+                }
+                return -ENOSPC;
+            }
+            ((uint32_t *) oi->oi_indirect2)[ind] = ospfs_block(allocated[1]);  
+        }
+        ((uint32_t *) ((uint32_t *) oi->oi_indirect2)[ind])[d] = ospfs_block(allocated[0]);
+    }
+    oi->oi_size += OSPFS_BLKSIZE;
+    return 0;
 }
 
 
