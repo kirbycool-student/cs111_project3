@@ -598,8 +598,16 @@ ospfs_unlink(struct inode *dirino, struct dentry *dentry)
 static uint32_t
 allocate_block(void)
 {
-	/* EXERCISE: Your code here */
-	return 0;
+    int k;
+    for(k = 0; k < ((ospfs_super->os_firstinob - 2) * OSPFS_BLKSIZE);k++)
+    {
+        if(bitvector_test(ospfs_data[OSPFS_BLKSIZE*2],k) == 1)
+        {   
+            bitvector_clear(ospfs_data[OSPFS_BLKSIZE*2],k);
+            return k;
+        }
+    }
+    return 0;
 }
 
 
@@ -617,7 +625,12 @@ allocate_block(void)
 static void
 free_block(uint32_t blockno)
 {
-	/* EXERCISE: Your code here */
+    if(blockno < (ospfs_super->os_firstinob + ospfs_super->os_ninodes))
+    {
+         //crash? some error?
+        eprintk("tried to free inappropriate blockno");
+    }
+    bitvector_set(ospfs_data[OSPFS_BLKSIZE*2],blockno);
 }
 
 
@@ -653,8 +666,9 @@ free_block(uint32_t blockno)
 static int32_t
 indir2_index(uint32_t b)
 {
-	// Your code here.
-	return -1;
+    if(b < 90)
+        return -1;
+    return 0;	
 }
 
 
@@ -672,8 +686,11 @@ indir2_index(uint32_t b)
 static int32_t
 indir_index(uint32_t b)
 {
-	// Your code here.
-	return -1;
+    if( b < 10)
+        return -1;
+    else if (b < 90)
+        return 0;
+    return (b - 90) / 80;	
 }
 
 
@@ -689,8 +706,12 @@ indir_index(uint32_t b)
 static int32_t
 direct_index(uint32_t b)
 {
-	// Your code here.
-	return -1;
+    if( b < 10)
+        return b;
+    else if (b < 90)
+        return b - 10;
+    else
+        return (b - 90) % 80;	
 }
 
 
@@ -903,8 +924,6 @@ ospfs_read(struct file *filp, char __user *buffer, size_t count, loff_t *f_pos)
 		uint32_t n;
 		char *data;
 
-        eprintk("reading block %d\n", blockno);
-
 		// ospfs_inode_blockno returns 0 on error
 		if (blockno == 0) {
 			retval = -EIO;
@@ -931,7 +950,7 @@ ospfs_read(struct file *filp, char __user *buffer, size_t count, loff_t *f_pos)
             n = remaining;
         }
 
-        if ( copy_to_user(buffer, data + *f_pos % OSPFS_BLKSIZE, n) )
+        if ( copy_to_user(buffer, data, n) )
         {
             retval = -EFAULT;
         }
@@ -970,10 +989,6 @@ ospfs_write(struct file *filp, const char __user *buffer, size_t count, loff_t *
 	ospfs_inode_t *oi = ospfs_inode(filp->f_dentry->d_inode->i_ino);
 	int retval = 0;
 	size_t amount = 0;
-
-    char newline[1] = "\n";
-    eprintk("amount=%d\n", amount);
-    
 
 	// Support files opened with the O_APPEND flag.  To detect O_APPEND,
 	// use struct file's f_flags field and the O_APPEND bit.
@@ -1030,7 +1045,7 @@ ospfs_write(struct file *filp, const char __user *buffer, size_t count, loff_t *
             n = remaining;
         }
 
-        if ( copy_from_user((data + *f_pos % OSPFS_BLKSIZE), buffer, n) )
+        if ( copy_from_user(data, buffer, n) )
         {
             eprintk("bigass error on copy\n");
             retval = -EFAULT;
