@@ -767,9 +767,9 @@ add_block(ospfs_inode_t *oi)
 	// keep track of allocations to free in case of -ENOSPC
 	uint32_t allocated[3] = { 0, 0, 0 };
 
-    uint32_t ind2 = indir2_index(n);
-    uint32_t ind = indir_index(n);
-    uint32_t d = direct_index(n);
+    uint32_t ind2 = indir2_index(n+1);
+    uint32_t ind = indir_index(n+1);
+    uint32_t d = direct_index(n+1);
     
     if(d < 0)
         return -EIO;
@@ -868,9 +868,53 @@ remove_block(ospfs_inode_t *oi)
 {
 	// current number of blocks in file
 	uint32_t n = ospfs_size2nblocks(oi->oi_size);
+    
+    uint32_t ind2 = indir2_index(n);
+    uint32_t ind = indir_index(n);
+    uint32_t d = direct_index(n);
+   
+    if(d < 0)
+        return -EIO;
 
-	/* EXERCISE: Your code here */
-	return -EIO; // Replace this line
+    if(ind2 == -1)
+    {
+        if(ind == -1)
+        {//delete dir
+      //      free_block((&(oi->oi_direct[d]) - ospfs_data) / OSPFS_BLKSIZE);
+            oi->oi_direct[d] = NULL; 
+        }   
+        else if (ind == 0)
+        {//delete ind->dir
+         //   free_block((&(((uint32_t *) oi->oi_indirect)[d]) - ospfs_data) / OSPFS_BLKSIZE);
+            if(d == 0)
+            {//delete ind
+            //    free_block((&(oi->oi_indirect) - ospfs_data) / OSPFS_BLKSIZE);
+            }
+        }
+        else
+        {
+            return -EIO;
+        } 
+    }
+    else
+    {
+        if( ind < 0 || ind2 != 0)
+            return -EIO;
+        //delete ind2->ind->dir
+        //free_block((&(((uint32_t *) ((uint32_t *) oi->oi_indirect2)[ind])[d]) - 
+          //              ospfs_data) / OSPFS_BLKSIZE);
+        if(d == 0)
+        {
+            //delete ind2->ind
+        }
+        if(ind == 0)
+        {
+            //delete ind2
+        }
+    }
+    
+    oi->oi_size -= OSPFS_BLKSIZE;
+    return 0;
 }
 
 
