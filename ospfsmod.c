@@ -423,7 +423,7 @@ ospfs_dir_lookup(struct inode *dir, struct dentry *dentry, struct nameidata *ign
 static int
 ospfs_dir_readdir(struct file *filp, void *dirent, filldir_t filldir)
 {
-    //eprintk("attempting to read a directory\n");
+    eprintk("attempting to read a directory\n");
 	struct inode *dir_inode = filp->f_dentry->d_inode;
 	ospfs_inode_t *dir_oi = ospfs_inode(dir_inode->i_ino);
 	uint32_t f_pos = filp->f_pos;
@@ -604,12 +604,16 @@ ospfs_unlink(struct inode *dirino, struct dentry *dentry)
 static uint32_t
 allocate_block(void)
 {
+    eprintk("allocating block");
     int k;
-    for(k = 0; k < ((ospfs_super->os_firstinob - 2) * OSPFS_BLKSIZE);k++)
+    for(k = ospfs_super->os_firstinob + (ospfs_super->os_ninodes / 16); 
+        k < ospfs_super->os_nblocks;
+        k++)
     {
-        if(bitvector_test(ospfs_data[OSPFS_BLKSIZE*2],k) == 1)
+        if(bitvector_test(ospfs_block(2),k) == 1)
         {   
-            bitvector_clear(ospfs_data[OSPFS_BLKSIZE*2],k);
+            bitvector_clear(ospfs_block(2),k);
+            memset(ospfs_block(k),0,OSPFS_BLKSIZE);
             return k;
         }
     }
@@ -631,12 +635,13 @@ allocate_block(void)
 static void
 free_block(uint32_t blockno)
 {
-    if(blockno < (ospfs_super->os_firstinob + ospfs_super->os_ninodes))
+    eprintk("freeing block");
+    if(blockno < (ospfs_super->os_firstinob + (ospfs_super->os_ninodes / 16)))
     {
-         //crash? some error?
         eprintk("tried to free inappropriate blockno");
+        exit(1);
     }
-    bitvector_set(ospfs_data[OSPFS_BLKSIZE*2],blockno);
+    bitvector_set(ospfs_block(2),blockno);
 }
 
 
@@ -755,14 +760,83 @@ direct_index(uint32_t b)
 static int
 add_block(ospfs_inode_t *oi)
 {
+    eprintk("adding block");
 	// current number of blocks in file
 	uint32_t n = ospfs_size2nblocks(oi->oi_size);
 
 	// keep track of allocations to free in case of -ENOSPC
-	uint32_t *allocated[2] = { 0, 0 };
+	uint32_t *allocated[3] = { 0, 0, 0 };
 
-	/* EXERCISE: Your code here */
-	return -EIO; // Replace this line
+    uint32_t ind2 = indir2_index(n);
+    uint32_t ind = indir_index(n);
+    uint32_t d = direct_index(n);
+    
+    if(d < 0)
+        return -EIO;
+
+    allocated[0] = allocate_block();
+    if(allocated[0] == 0)
+    {
+        return -ENOSPC;
+    }
+
+    if(ind2 == -1)
+    {
+        if(ind == -1)
+        {
+            oi->oi_direct[d] = ospfs_block(allocated[0]);
+        }   
+        else if (ind == 0)
+        {
+            if(oi->oi_indirect == NULL)
+            {
+                allocated[1] = allocate_block();
+                if(allocated[1] == 0)
+                {
+                    free_block(allocated[0]); 
+                    return -ENOSPC;
+                }
+                oi->oi_indirect = ospfs_block(allocated[1]);
+            }
+            ((uint32_t *) oi->oi_indirect)[d] = ospfs_block(allocated[0]);
+        }
+        else
+        {
+            return -EIO;
+        } 
+    }
+    else
+    {
+        if( ind < 0 || ind2 != 0)
+            return -EIO;
+        if(oi->oi_indirect2 == NULL)
+        {
+            allocated[2] = allocate_block();
+            if(allocated[2] == 0)
+            {
+                free_block(allocated[0]);
+                return -ENOSPC;
+            }
+            oi->oi_indirect2 = ospfs_block(allocated[2]);
+        }
+        if(((uint32_t *) oi->oi_indirect2)[ind] == NULL)
+        {
+            allocated[1] = allocate_block();
+            if(allocated[1] == 0)
+            {
+                free_block(allocated[0]);
+                if(allocated[2] != 0)
+                {
+                    free_block(allocated[2]);
+                }
+                return -ENOSPC;
+            }
+            ((uint32_t *) oi->oi_indirect2)[ind] = ospfs_block(allocated[1]);  
+        }
+        ((uint32_t *) ((uint32_t *) oi->oi_indirect2)[ind])[d] = ospfs_block(allocated[0]);
+    }
+    oi->oi_size += OSPFS_BLKSIZE;
+    return 0;
 }
 
 
