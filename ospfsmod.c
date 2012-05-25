@@ -642,6 +642,7 @@ free_block(uint32_t blockno)
         exit(1);
     }
     bitvector_set(ospfs_block(2),blockno);
+    return;
 }
 
 
@@ -779,7 +780,7 @@ add_block(ospfs_inode_t *oi)
     {
         return -ENOSPC;
     }
-
+    
     if(ind2 == -1)
     {
         if(ind == -1)
@@ -835,6 +836,7 @@ add_block(ospfs_inode_t *oi)
         }
         ((uint32_t *) ((uint32_t *) oi->oi_indirect2)[ind])[d] = ospfs_block(allocated[0]);
     }
+    
     oi->oi_size += OSPFS_BLKSIZE;
     return 0;
 }
@@ -1213,7 +1215,26 @@ create_blank_direntry(ospfs_inode_t *dir_oi)
 	//    entries and return one of them.
 
 	/* EXERCISE: Your code here. */
-	return ERR_PTR(-EINVAL); // Replace this line
+	//return ERR_PTR(-EINVAL); // Replace this line
+    eprintk("creating blank directory\n");
+    ospfs_direntry_t *od;
+    int add_return = 0;
+    size_t f_pos = dir_oi->oi_size;
+
+    if ( dir_oi->oi_size % OSPFS_BLKSIZE == 0 )
+    {
+        //allocate a new block
+        add_return = add_block( dir_oi );
+        if ( add_return != 0 )
+        {
+            eprintk("add_block returned %d\n", add_return);
+            return ERR_PTR(add_return);
+        }
+    }
+    od = ospfs_inode_data( dir_oi, f_pos );
+    return od;
+
+    
 }
 
 // ospfs_link(src_dentry, dir, dst_dentry
@@ -1285,8 +1306,44 @@ ospfs_create(struct inode *dir, struct dentry *dentry, int mode, struct nameidat
 {
 	ospfs_inode_t *dir_oi = ospfs_inode(dir->i_ino);
 	uint32_t entry_ino = 0;
+    ospfs_direntry_t *direntry;
+    ospfs_inode_t *inode;
 	/* EXERCISE: Your code here. */
-	return -EINVAL; // Replace this line
+	//return -EINVAL; // Replace this line
+    if ( dentry->d_name.len > OSPFS_MAXNAMELEN )
+    {
+        return -ENAMETOOLONG;
+    }
+    if ( find_direntry( dir_oi, dentry->d_name.name, dentry->d_name.len != NULL) )
+    {
+        return -EEXIST;
+    }
+    //find empty inode number
+    for ( entry_ino = 0; entry_ino < ospfs_super->os_ninodes; entry_ino++ )
+    {
+        if ( ospfs_inode(entry_ino)->oi_nlink == 0)
+        {
+            break;
+        }
+    }
+    if ( entry_ino == ospfs_super->os_ninodes )
+    {
+        return -ENOSPC;
+    }
+    //initialize empty directory entry and inode
+    //inode
+    inode = ospfs_inode(entry_ino);
+    inode->oi_size = 0;
+    inode->oi_ftype = OSPFS_FTYPE_REG;
+    inode->oi_nlink = 1;
+    inode->oi_mode = mode;
+    
+    //directory entry
+    direntry = create_blank_direntry(dir_oi);
+    direntry->od_ino = entry_ino;
+    memcpy(direntry->od_name, dentry->d_name.name, dentry->d_name.len + 1);    
+
+    
 
 	/* Execute this code after your function has successfully created the
 	   file.  Set entry_ino to the created file's inode number before
