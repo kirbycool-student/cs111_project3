@@ -1269,18 +1269,26 @@ static int
 ospfs_link(struct dentry *src_dentry, struct inode *dir, struct dentry *dst_dentry) {
 	/* EXERCISE: Your code here. */
 	//return -EINVAL;
+    eprintk("creating hard link %s\n", dst_dentry->d_name.name);
     ospfs_inode_t *src_inode = ospfs_inode( src_dentry->d_inode->i_ino );
+    eprintk("found src_inode\n");
 
     if ( dst_dentry->d_name.len > OSPFS_MAXNAMELEN )
     {
         return -ENAMETOOLONG;
     }
+    eprintk("checked for name too long\n");
     if ( find_direntry( dir, dst_dentry->d_name.name, dst_dentry->d_name.len != NULL) )
     {
         return -EEXIST;
     }
+    eprintk("checked already exists\n");
+    eprintk("dst_dentry->d_inode=%d\n", dst_dentry->d_inode);
     dst_dentry->d_inode->i_ino = src_dentry->d_inode->i_ino;
+    eprintk("incrementing link count\n");
     src_inode->oi_nlink++;
+    
+    eprintk("nlink=%d\n", src_inode->oi_nlink);
 
     return 0;
 
@@ -1318,6 +1326,7 @@ ospfs_link(struct dentry *src_dentry, struct inode *dir, struct dentry *dst_dent
 static int
 ospfs_create(struct inode *dir, struct dentry *dentry, int mode, struct nameidata *nd)
 {
+    eprintk("creating new file\n");
 	ospfs_inode_t *dir_oi = ospfs_inode(dir->i_ino);
 	uint32_t entry_ino = 0;
     ospfs_direntry_t *direntry;
