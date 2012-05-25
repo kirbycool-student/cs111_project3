@@ -674,10 +674,13 @@ free_block(uint32_t blockno)
 //
 // EXERCISE: Fill in this function.
 
+#define NDIRP 10
+#define NBLKP 256
+
 static int32_t
 indir2_index(uint32_t b)
 {
-    if(b < 90)
+    if(b < (NDIRP + NBLKP))
         return -1;
     return 0;	
 }
@@ -697,11 +700,11 @@ indir2_index(uint32_t b)
 static int32_t
 indir_index(uint32_t b)
 {
-    if( b < 10)
+    if( b < NDIRP)
         return -1;
-    else if (b < 90)
+    else if (b < (NDIRP + NBLKP))
         return 0;
-    return (b - 90) / 80;	
+    return (b - (NDIRP + NBLKP)) / NBLKP;
 }
 
 
@@ -717,12 +720,12 @@ indir_index(uint32_t b)
 static int32_t
 direct_index(uint32_t b)
 {
-    if( b < 10)
+    if( b < NDIRP )
         return b;
-    else if (b < 90)
-        return b - 10;
+    else if (b < (NDIRP + NBLKP))
+        return b - NDIRP ;
     else
-        return (b - 90) % 80;	
+        return (b - (NDIRP + NBLKP)) % NBLKP;	
 }
 
 
