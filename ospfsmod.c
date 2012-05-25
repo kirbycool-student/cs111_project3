@@ -423,7 +423,7 @@ ospfs_dir_lookup(struct inode *dir, struct dentry *dentry, struct nameidata *ign
 static int
 ospfs_dir_readdir(struct file *filp, void *dirent, filldir_t filldir)
 {
-    eprintk("attempting to read a directory\n");
+    //eprintk("attempting to read a directory\n");
 	struct inode *dir_inode = filp->f_dentry->d_inode;
 	ospfs_inode_t *dir_oi = ospfs_inode(dir_inode->i_ino);
 	uint32_t f_pos = filp->f_pos;
@@ -459,7 +459,7 @@ ospfs_dir_readdir(struct file *filp, void *dirent, filldir_t filldir)
 		 * EXERCISE: Your code here */
         if ( f_pos-2 >= dir_oi->oi_size-1 )
 		{
-            eprintk("we reached the end of the directory\n");   
+            //eprintk("we reached the end of the directory\n");   
             r = 1;		
 		    break;	
         }
@@ -488,7 +488,7 @@ ospfs_dir_readdir(struct file *filp, void *dirent, filldir_t filldir)
         od = ospfs_inode_data( dir_oi, f_pos-2 );
         //eprintk( "inode number=%d\n", od->od_ino);
         //eprintk( "directory '%s'\n", od->od_name);
-        //entry_oi = ospfs_inode( od->od_ino );
+        entry_oi = ospfs_inode( od->od_ino );
         //eprintk("set inode pointers\n");
         
         if ( od->od_ino == 0 )
