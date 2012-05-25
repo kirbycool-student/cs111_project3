@@ -1270,7 +1270,7 @@ static int
 ospfs_link(struct dentry *src_dentry, struct inode *dir, struct dentry *dst_dentry) {
 	/* EXERCISE: Your code here. */
 	//return -EINVAL;
-    ospfs_inode_t src_inode = ospfs_inode( src_dentry->d_inode->i_ino );
+    ospfs_inode_t *src_inode = ospfs_inode( src_dentry->d_inode->i_ino );
 
     if ( dst_dentry->d_name.len > OSPFS_MAXNAMELEN )
     {
