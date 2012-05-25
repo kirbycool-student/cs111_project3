@@ -423,7 +423,7 @@ ospfs_dir_lookup(struct inode *dir, struct dentry *dentry, struct nameidata *ign
 static int
 ospfs_dir_readdir(struct file *filp, void *dirent, filldir_t filldir)
 {
-    //eprintk("attempting to read a directory\n");
+    eprintk("attempting to read a directory\n");
 	struct inode *dir_inode = filp->f_dentry->d_inode;
 	ospfs_inode_t *dir_oi = ospfs_inode(dir_inode->i_ino);
 	uint32_t f_pos = filp->f_pos;
@@ -604,6 +604,7 @@ ospfs_unlink(struct inode *dirino, struct dentry *dentry)
 static uint32_t
 allocate_block(void)
 {
+    eprintk("allocating block");
     int k;
     for(k = ospfs_super->os_firstinob + (ospfs_super->os_ninodes / 16); 
         k < ospfs_super->os_nblocks;
@@ -634,6 +635,7 @@ allocate_block(void)
 static void
 free_block(uint32_t blockno)
 {
+    eprintk("freeing block");
     if(blockno < (ospfs_super->os_firstinob + (ospfs_super->os_ninodes / 16)))
     {
         eprintk("tried to free inappropriate blockno");
@@ -758,6 +760,7 @@ direct_index(uint32_t b)
 static int
 add_block(ospfs_inode_t *oi)
 {
+    eprintk("adding block");
 	// current number of blocks in file
 	uint32_t n = ospfs_size2nblocks(oi->oi_size);
 
