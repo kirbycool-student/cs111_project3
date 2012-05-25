@@ -639,9 +639,8 @@ free_block(uint32_t blockno)
     if(blockno < (ospfs_super->os_firstinob + (ospfs_super->os_ninodes / 16)))
     {
         eprintk("tried to free inappropriate blockno");
-        exit(1);
     }
-    bitvector_set(ospfs_block(2),blockno);
+    bitvector_set(ospfs_block(2),(int) blockno);
     return;
 }
 
@@ -766,7 +765,7 @@ add_block(ospfs_inode_t *oi)
 	uint32_t n = ospfs_size2nblocks(oi->oi_size);
 
 	// keep track of allocations to free in case of -ENOSPC
-	uint32_t *allocated[3] = { 0, 0, 0 };
+	uint32_t allocated[3] = { 0, 0, 0 };
 
     uint32_t ind2 = indir2_index(n);
     uint32_t ind = indir_index(n);
