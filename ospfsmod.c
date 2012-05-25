@@ -1051,7 +1051,7 @@ ospfs_write(struct file *filp, const char __user *buffer, size_t count, loff_t *
             n = remaining;
         }
 
-        if ( copy_from_user(data, buffer, n) )
+        if ( copy_from_user((data + *f_pos % OSPFS_BLKSIZE), buffer, n) )
         {
             eprintk("bigass error on copy\n");
             retval = -EFAULT;
