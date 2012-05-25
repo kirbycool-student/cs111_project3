@@ -862,6 +862,11 @@ add_block(ospfs_inode_t *oi)
 // deallocated.  Also, if you free a block, make sure that
 // you set the block pointer to 0.  Don't leave pointers to
 // deallocated blocks laying around!
+uint32_t ptr2block(uint32_t ptr)
+{
+ return ((uint32_t) ((((uint32_t *) ptr) - ((uint32_t *) ospfs_data))
+             / OSPFS_BLKSIZE));
+}
 
 static int
 remove_block(ospfs_inode_t *oi)
@@ -880,15 +885,15 @@ remove_block(ospfs_inode_t *oi)
     {
         if(ind == -1)
         {//delete dir
-      //      free_block((&(oi->oi_direct[d]) - ospfs_data) / OSPFS_BLKSIZE);
+            free_block(ptr2block(oi->oi_direct[d]));
             oi->oi_direct[d] = NULL; 
         }   
         else if (ind == 0)
         {//delete ind->dir
-         //   free_block((&(((uint32_t *) oi->oi_indirect)[d]) - ospfs_data) / OSPFS_BLKSIZE);
+            free_block(ptr2block(((uint32_t *) oi->oi_indirect)[d]));
             if(d == 0)
             {//delete ind
-            //    free_block((&(oi->oi_indirect) - ospfs_data) / OSPFS_BLKSIZE);
+                free_block(ptr2block(oi->oi_indirect));
             }
         }
         else
@@ -901,15 +906,16 @@ remove_block(ospfs_inode_t *oi)
         if( ind < 0 || ind2 != 0)
             return -EIO;
         //delete ind2->ind->dir
-        //free_block((&(((uint32_t *) ((uint32_t *) oi->oi_indirect2)[ind])[d]) - 
-          //              ospfs_data) / OSPFS_BLKSIZE);
+        free_block(ptr2block((((uint32_t *) ((uint32_t *) oi->oi_indirect2)[ind])[d])));
         if(d == 0)
         {
             //delete ind2->ind
+            free_block(ptr2block(((uint32_t *) oi->oi_indirect2)[ind]));
         }
         if(ind == 0)
         {
             //delete ind2
+            free_block(ptr2block(oi->oi_indirect2));
         }
     }
     
