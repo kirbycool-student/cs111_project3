@@ -639,10 +639,10 @@ allocate_block(void)
 static void
 free_block(uint32_t blockno)
 {
-    eprintk("freeing block");
+    eprintk("freeing block\n");
     if(blockno < (ospfs_super->os_firstinob + (ospfs_super->os_ninodes / 16)))
     {
-        eprintk("tried to free inappropriate blockno");
+        eprintk("tried to free inappropriate blockno\n");
     }
     bitvector_set(ospfs_block(2),(int) blockno);
     return;
@@ -1181,7 +1181,7 @@ ospfs_write(struct file *filp, const char __user *buffer, size_t count, loff_t *
         eprintk("writing to block %d\n", blockno);
 		
         if (blockno == 0) {
-            eprintk("bigass error\n");
+            eprintk("write error\n");
 			retval = -EIO;
 			goto done;
 		}
