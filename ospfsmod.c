@@ -674,10 +674,13 @@ free_block(uint32_t blockno)
 //
 // EXERCISE: Fill in this function.
 
+#define NDIRP 10
+#define NBLKP 256
+
 static int32_t
 indir2_index(uint32_t b)
 {
-    if(b < 90)
+    if(b < (NDIRP + NBLKP))
         return -1;
     return 0;	
 }
@@ -697,11 +700,11 @@ indir2_index(uint32_t b)
 static int32_t
 indir_index(uint32_t b)
 {
-    if( b < 10)
+    if( b < NDIRP)
         return -1;
-    else if (b < 90)
+    else if (b < (NDIRP + NBLKP))
         return 0;
-    return (b - 90) / 80;	
+    return (b - (NDIRP + NBLKP)) / NBLKP;
 }
 
 
@@ -717,12 +720,12 @@ indir_index(uint32_t b)
 static int32_t
 direct_index(uint32_t b)
 {
-    if( b < 10)
+    if( b < NDIRP )
         return b;
-    else if (b < 90)
-        return b - 10;
+    else if (b < (NDIRP + NBLKP))
+        return b - NDIRP ;
     else
-        return (b - 90) % 80;	
+        return (b - (NDIRP + NBLKP)) % NBLKP;	
 }
 
 
@@ -767,9 +770,9 @@ add_block(ospfs_inode_t *oi)
 	// keep track of allocations to free in case of -ENOSPC
 	uint32_t allocated[3] = { 0, 0, 0 };
 
-    uint32_t ind2 = indir2_index(n);
-    uint32_t ind = indir_index(n);
-    uint32_t d = direct_index(n);
+    uint32_t ind2 = indir2_index(n+1);
+    uint32_t ind = indir_index(n+1);
+    uint32_t d = direct_index(n+1);
     
     if(d < 0)
         return -EIO;
@@ -862,15 +865,65 @@ add_block(ospfs_inode_t *oi)
 // deallocated.  Also, if you free a block, make sure that
 // you set the block pointer to 0.  Don't leave pointers to
 // deallocated blocks laying around!
+uint32_t ptr2block(uint32_t ptr)
+{
+ return ((uint32_t) ((((uint32_t *) ptr) - ((uint32_t *) ospfs_data))
+             / OSPFS_BLKSIZE));
+}
 
 static int
 remove_block(ospfs_inode_t *oi)
 {
 	// current number of blocks in file
 	uint32_t n = ospfs_size2nblocks(oi->oi_size);
+    
+    uint32_t ind2 = indir2_index(n);
+    uint32_t ind = indir_index(n);
+    uint32_t d = direct_index(n);
+   
+    if(d < 0)
+        return -EIO;
 
-	/* EXERCISE: Your code here */
-	return -EIO; // Replace this line
+    if(ind2 == -1)
+    {
+        if(ind == -1)
+        {//delete dir
+            free_block(ptr2block(oi->oi_direct[d]));
+            oi->oi_direct[d] = NULL; 
+        }   
+        else if (ind == 0)
+        {//delete ind->dir
+            free_block(ptr2block(((uint32_t *) oi->oi_indirect)[d]));
+            if(d == 0)
+            {//delete ind
+                free_block(ptr2block(oi->oi_indirect));
+            }
+        }
+        else
+        {
+            return -EIO;
+        } 
+    }
+    else
+    {
+        if( ind < 0 || ind2 != 0)
+            return -EIO;
+        //delete ind2->ind->dir
+        free_block(ptr2block((((uint32_t *) ((uint32_t *) oi->oi_indirect2)[ind])[d])));
+        if(d == 0)
+        {
+            //delete ind2->ind
+            free_block(ptr2block(((uint32_t *) oi->oi_indirect2)[ind]));
+        }
+        if(ind == 0)
+        {
+            //delete ind2
+            free_block(ptr2block(oi->oi_indirect2));
+        }
+    }
+    
+    oi->oi_size -= OSPFS_BLKSIZE;
+    return 0;
 }
 
 
@@ -916,18 +969,31 @@ change_size(ospfs_inode_t *oi, uint32_t new_size)
 	uint32_t old_size = oi->oi_size;
 	int r = 0;
 
-	while (ospfs_size2nblocks(oi->oi_size) < ospfs_size2nblocks(new_size)) {
-	        /* EXERCISE: Your code here */
-		return -EIO; // Replace this line
+	while (ospfs_size2nblocks(oi->oi_size) < ospfs_size2nblocks(new_size))
+    {
+	    r = add_block(oi);
+        if (r == -ENOSPC)
+        {
+           while(ospfs_size2nblocks(oi->oi_size) > ospfs_size2nblocks(old_size)) 
+            {
+	            r = remove_block(oi);
+                if (r == -EIO)
+		            return -EIO;
+	        }
+            oi->oi_size = old_size;
+            return -ENOSPC;
+        }
+        else if (r != 0)
+            return -EIO; 
 	}
-	while (ospfs_size2nblocks(oi->oi_size) > ospfs_size2nblocks(new_size)) {
-	        /* EXERCISE: Your code here */
-		return -EIO; // Replace this line
+	while (ospfs_size2nblocks(oi->oi_size) > ospfs_size2nblocks(new_size)) 
+    {
+	    r = remove_block(oi);
+        if (r == -EIO)
+		    return -EIO;
 	}
-
-	/* EXERCISE: Make sure you update necessary file meta data
-	             and return the proper value. */
-	return -EIO; // Replace this line
+    oi->oi_size = new_size;
+	return 0;
 }
 
 
