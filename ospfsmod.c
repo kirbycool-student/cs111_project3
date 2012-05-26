@@ -606,17 +606,21 @@ allocate_block(void)
 {
     eprintk("allocating block");
     int k;
+    eprintk("1stinob: %d, ninobs: %d",ospfs_super->os_firstinob,ospfs_super->os_ninodes);
     for(k = ospfs_super->os_firstinob + (ospfs_super->os_ninodes / 16); 
         k < ospfs_super->os_nblocks;
         k++)
     {
+        eprintk("iteration: k = %d",k);
         if(bitvector_test(ospfs_block(2),k) == 1)
         {   
             bitvector_clear(ospfs_block(2),k);
             memset(ospfs_block(k),0,OSPFS_BLKSIZE);
+            eprintk("returning k = %d",k);
             return k;
         }
     }
+    eprintk("returning 0");
     return 0;
 }
 
@@ -787,10 +791,12 @@ add_block(ospfs_inode_t *oi)
     {
         if(ind == -1)
         {
+            eprintk("direct");
             oi->oi_direct[d] = ospfs_block(allocated[0]);
         }   
         else if (ind == 0)
         {
+            eprintk("indir");
             if(oi->oi_indirect == NULL)
             {
                 allocated[1] = allocate_block();
@@ -801,6 +807,7 @@ add_block(ospfs_inode_t *oi)
                 }
                 oi->oi_indirect = ospfs_block(allocated[1]);
             }
+            eprintk("1st deref");
             ((uint32_t *) oi->oi_indirect)[d] = ospfs_block(allocated[0]);
         }
         else
@@ -812,6 +819,7 @@ add_block(ospfs_inode_t *oi)
     {
         if( ind < 0 || ind2 != 0)
             return -EIO;
+            eprintk("indir2");
         if(oi->oi_indirect2 == NULL)
         {
             allocated[2] = allocate_block();
@@ -822,6 +830,7 @@ add_block(ospfs_inode_t *oi)
             }
             oi->oi_indirect2 = ospfs_block(allocated[2]);
         }
+            eprintk("1st deref");
         if(((uint32_t *) oi->oi_indirect2)[ind] == NULL)
         {
             allocated[1] = allocate_block();
@@ -834,11 +843,15 @@ add_block(ospfs_inode_t *oi)
                 }
                 return -ENOSPC;
             }
+            eprintk("1st deref");
             ((uint32_t *) oi->oi_indirect2)[ind] = ospfs_block(allocated[1]);  
         }
+            eprintk("1st deref");
         ((uint32_t *) ((uint32_t *) oi->oi_indirect2)[ind])[d] = ospfs_block(allocated[0]);
     }
     
+
+            eprintk("made it through add");
     oi->oi_size += OSPFS_BLKSIZE;
     return 0;
 }
@@ -1297,6 +1310,7 @@ create_blank_direntry(ospfs_inode_t *dir_oi)
         }
     }
     od = ospfs_inode_data( dir_oi, f_pos );
+    eprintk("created blank directory\n");
     return od;
 
     
