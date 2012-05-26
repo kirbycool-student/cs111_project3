@@ -1215,7 +1215,7 @@ create_blank_direntry(ospfs_inode_t *dir_oi)
 
 	/* EXERCISE: Your code here. */
 	//return ERR_PTR(-EINVAL); // Replace this line
-    eprintk("creating blank directory\n");
+    eprintk("creating blank directory entry\n");
     ospfs_direntry_t *od;
     int add_return = 0;
     size_t f_pos = dir_oi->oi_size;
@@ -1270,21 +1270,27 @@ ospfs_link(struct dentry *src_dentry, struct inode *dir, struct dentry *dst_dent
 	/* EXERCISE: Your code here. */
 	//return -EINVAL;
     eprintk("creating hard link %s\n", dst_dentry->d_name.name);
+    ospfs_inode_t *dir_inode = ospfs_inode( dir->i_ino );
     ospfs_inode_t *src_inode = ospfs_inode( src_dentry->d_inode->i_ino );
+    ospfs_direntry_t *dst_od = create_blank_direntry(dir_inode);
     eprintk("found src_inode\n");
 
+    if( IS_ERR(dst_od) )
+    {
+        return -EIO;
+    }
     if ( dst_dentry->d_name.len > OSPFS_MAXNAMELEN )
     {
         return -ENAMETOOLONG;
     }
     eprintk("checked for name too long\n");
-    if ( find_direntry( dir, dst_dentry->d_name.name, dst_dentry->d_name.len != NULL) )
+    if ( find_direntry( dir_inode, dst_dentry->d_name.name, dst_dentry->d_name.len) != NULL )
     {
         return -EEXIST;
     }
     eprintk("checked already exists\n");
-    eprintk("dst_dentry->d_inode=%d\n", dst_dentry->d_inode);
-    dst_dentry->d_inode->i_ino = src_dentry->d_inode->i_ino;
+    dst_od->od_ino = src_dentry->d_inode->i_ino;
+    strncpy( dst_od->od_name, dst_dentry->d_name.name, OSPFS_MAXNAMELEN);
     eprintk("incrementing link count\n");
     src_inode->oi_nlink++;
     
