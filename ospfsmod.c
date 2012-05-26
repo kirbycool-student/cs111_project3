@@ -604,23 +604,23 @@ ospfs_unlink(struct inode *dirino, struct dentry *dentry)
 static uint32_t
 allocate_block(void)
 {
-    eprintk("allocating block");
+    eprintk("allocating block\n");
     int k;
-    eprintk("1stinob: %d, ninobs: %d",ospfs_super->os_firstinob,ospfs_super->os_ninodes);
+    eprintk("1stinob: %d, ninobs: %d\n",ospfs_super->os_firstinob,ospfs_super->os_ninodes);
     for(k = ospfs_super->os_firstinob + (ospfs_super->os_ninodes / 16); 
         k < ospfs_super->os_nblocks;
         k++)
     {
-        eprintk("iteration: k = %d",k);
+       //  eprintk("iteration: k = %d",k);
         if(bitvector_test(ospfs_block(2),k) == 1)
         {   
             bitvector_clear(ospfs_block(2),k);
             memset(ospfs_block(k),0,OSPFS_BLKSIZE);
-            eprintk("returning k = %d",k);
+            eprintk("returning k = %d\n",k);
             return k;
         }
     }
-    eprintk("returning 0");
+    eprintk("returning 0\n");
     return 0;
 }
 
@@ -767,7 +767,7 @@ direct_index(uint32_t b)
 static int
 add_block(ospfs_inode_t *oi)
 {
-    eprintk("adding block");
+    eprintk("adding block\n");
 	// current number of blocks in file
 	uint32_t n = ospfs_size2nblocks(oi->oi_size);
 
@@ -791,12 +791,12 @@ add_block(ospfs_inode_t *oi)
     {
         if(ind == -1)
         {
-            eprintk("direct");
+            eprintk("direct\n");
             oi->oi_direct[d] = ospfs_block(allocated[0]);
         }   
         else if (ind == 0)
         {
-            eprintk("indir");
+            eprintk("indir\n");
             if(oi->oi_indirect == NULL)
             {
                 allocated[1] = allocate_block();
@@ -807,7 +807,7 @@ add_block(ospfs_inode_t *oi)
                 }
                 oi->oi_indirect = ospfs_block(allocated[1]);
             }
-            eprintk("1st deref");
+            eprintk("1st deref\n");
             ((uint32_t *) oi->oi_indirect)[d] = ospfs_block(allocated[0]);
         }
         else
@@ -819,7 +819,7 @@ add_block(ospfs_inode_t *oi)
     {
         if( ind < 0 || ind2 != 0)
             return -EIO;
-            eprintk("indir2");
+            eprintk("indir2\n");
         if(oi->oi_indirect2 == NULL)
         {
             allocated[2] = allocate_block();
@@ -830,7 +830,7 @@ add_block(ospfs_inode_t *oi)
             }
             oi->oi_indirect2 = ospfs_block(allocated[2]);
         }
-            eprintk("1st deref");
+            eprintk("1st deref\n");
         if(((uint32_t *) oi->oi_indirect2)[ind] == NULL)
         {
             allocated[1] = allocate_block();
@@ -843,15 +843,15 @@ add_block(ospfs_inode_t *oi)
                 }
                 return -ENOSPC;
             }
-            eprintk("1st deref");
+            eprintk("1st deref\n");
             ((uint32_t *) oi->oi_indirect2)[ind] = ospfs_block(allocated[1]);  
         }
-            eprintk("1st deref");
+            eprintk("1st deref\n");
         ((uint32_t *) ((uint32_t *) oi->oi_indirect2)[ind])[d] = ospfs_block(allocated[0]);
     }
     
 
-            eprintk("made it through add");
+            eprintk("made it through add\n");
     oi->oi_size += OSPFS_BLKSIZE;
     return 0;
 }
@@ -887,6 +887,7 @@ uint32_t ptr2block(uint32_t ptr)
 static int
 remove_block(ospfs_inode_t *oi)
 {
+    eprintk("removing block\n");
 	// current number of blocks in file
 	uint32_t n = ospfs_size2nblocks(oi->oi_size);
     
@@ -979,6 +980,7 @@ remove_block(ospfs_inode_t *oi)
 static int
 change_size(ospfs_inode_t *oi, uint32_t new_size)
 {
+    eprintk("changin up da size\n");
 	uint32_t old_size = oi->oi_size;
 	int r = 0;
 
