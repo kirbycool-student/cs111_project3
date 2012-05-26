@@ -1067,6 +1067,7 @@ ospfs_notify_change(struct dentry *dentry, struct iattr *attr)
 static ssize_t
 ospfs_read(struct file *filp, char __user *buffer, size_t count, loff_t *f_pos)
 {
+    eprintk("reading ino=%d\n", filp->f_dentry->d_inode->i_ino);
 	ospfs_inode_t *oi = ospfs_inode(filp->f_dentry->d_inode->i_ino);
 	int retval = 0;
 	size_t amount = 0;
@@ -1079,6 +1080,10 @@ ospfs_read(struct file *filp, char __user *buffer, size_t count, loff_t *f_pos)
     {
         count = (oi->oi_size - *f_pos);
     }
+    if ( filp->f_dentry->d_inode->i_ino == 0 )
+    {
+        return -EIO;
+    }
 
 	// Copy the data to user block by block
 	while (amount < count && retval >= 0) {
@@ -1087,10 +1092,10 @@ ospfs_read(struct file *filp, char __user *buffer, size_t count, loff_t *f_pos)
 		char *data;
 
 		// ospfs_inode_blockno returns 0 on error
-		if (blockno == 0) {
-			retval = -EIO;
-			goto done;
-		}
+		//if (blockno == 0) {
+		//	retval = -EIO;
+		//	goto done;
+		//}
 
 		data = ospfs_block(blockno);
 
