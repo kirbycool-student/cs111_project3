@@ -490,6 +490,12 @@ ospfs_dir_readdir(struct file *filp, void *dirent, filldir_t filldir)
         eprintk( "directory entry '%s'\n", od->od_name);
         entry_oi = ospfs_inode( od->od_ino );
         eprintk("set inode pointers\n");
+
+        if ( entry_oi == 0 )
+        {
+            eprintk("entry_oi was 0\n");
+            return -EIO;
+        }
         
         if ( od->od_ino == 0 )
         {
@@ -1155,7 +1161,7 @@ ospfs_read(struct file *filp, char __user *buffer, size_t count, loff_t *f_pos)
 static ssize_t
 ospfs_write(struct file *filp, const char __user *buffer, size_t count, loff_t *f_pos)
 {
-    eprintk("attempting write\n");
+    //eprintk("attempting write\n");
 	ospfs_inode_t *oi = ospfs_inode(filp->f_dentry->d_inode->i_ino);
 
 	int retval = 0;
@@ -1164,7 +1170,7 @@ ospfs_write(struct file *filp, const char __user *buffer, size_t count, loff_t *
 	// Support files opened with the O_APPEND flag.  To detect O_APPEND,
 	// use struct file's f_flags field and the O_APPEND bit.
 	/* EXERCISE: Your code here */
-    eprintk("append=%d\n", (filp->f_flags & O_APPEND) );
+    //eprintk("append=%d\n", (filp->f_flags & O_APPEND) );
     if ( (filp->f_flags & O_APPEND) != 0 )
     {
         eprintk("appending\n");
@@ -1174,13 +1180,13 @@ ospfs_write(struct file *filp, const char __user *buffer, size_t count, loff_t *
 	// If the user is writing past the end of the file, change the file's
 	// size to accomodate the request.  (Use change_size().)
 	/* EXERCISE: Your code here */
-        eprintk("size is %d", oi->oi_size);
+        //eprintk("size is %d", oi->oi_size);
     if ( (*f_pos + count) > oi->oi_size )
     {
         change_size( oi, *f_pos + count);
-        eprintk("size changed to %d\n", oi->oi_size);
+        //eprintk("size changed to %d\n", oi->oi_size);
     }
-    eprintk("size is %d", oi->oi_size);
+    //eprintk("size is %d", oi->oi_size);
     if ( filp->f_dentry->d_inode->i_ino == 0 )
     {
         return -EIO;
@@ -1188,14 +1194,14 @@ ospfs_write(struct file *filp, const char __user *buffer, size_t count, loff_t *
 
 	// Copy data block by block
 	while (amount < count && retval >= 0) {
-        eprintk("f_pos=%d\n", *f_pos);
-        eprintk("count=%d\n", count);
-        eprintk("amount=%d\n", amount);
+        //eprintk("f_pos=%d\n", *f_pos);
+        //eprintk("count=%d\n", count);
+        //eprintk("amount=%d\n", amount);
 		uint32_t blockno = ospfs_inode_blockno(oi, *f_pos);
 		uint32_t n;
 		char *data;
         
-        eprintk("writing to block %d\n", blockno);
+        //eprintk("writing to block %d\n", blockno);
 		
         /*
         if (blockno == 0) {
@@ -1321,7 +1327,7 @@ create_blank_direntry(ospfs_inode_t *dir_oi)
     for ( od = ospfs_inode_data( dir_oi, f_pos ); f_pos < dir_oi->oi_size; f_pos += sizeof( ospfs_direntry_t ))
     {
         od = ospfs_inode_data( dir_oi, f_pos );
-        eprintk("f_pos=%d, od->od_name=%s, od->od_ino=%d\n", f_pos, od->od_name, od->od_ino);
+        //eprintk("f_pos=%d, od->od_name=%s, od->od_ino=%d\n", f_pos, od->od_name, od->od_ino);
         if ( od->od_ino == 0 )
         {
             eprintk("found empty direntry\n");
@@ -1402,7 +1408,8 @@ ospfs_link(struct dentry *src_dentry, struct inode *dir, struct dentry *dst_dent
     }
     eprintk("checked already exists\n");
     dst_od->od_ino = src_dentry->d_inode->i_ino;
-    strncpy( dst_od->od_name, dst_dentry->d_name.name, dst_dentry->d_name.len );
+    dst_od->od_name[0] = '\0';
+    memcpy( dst_od->od_name, dst_dentry->d_name.name, dst_dentry->d_name.len+1 );
     eprintk("incrementing link count\n");
     src_inode->oi_nlink++;
     
@@ -1483,7 +1490,10 @@ ospfs_create(struct inode *dir, struct dentry *dentry, int mode, struct nameidat
     //directory entry
     direntry = create_blank_direntry(dir_oi);
     direntry->od_ino = entry_ino;
-    strncpy(direntry->od_name, dentry->d_name.name, dentry->d_name.len);
+    direntry->od_name[0] = '\0';
+    eprintk("name=%s, ino=%d\n", direntry->od_name, direntry->od_ino);
+    eprintk("dentryname=%s\n", dentry->d_name.name);
+    memcpy(direntry->od_name, dentry->d_name.name, dentry->d_name.len+1);
     eprintk("name=%s, ino=%d\n", direntry->od_name, direntry->od_ino);     
 
     
