@@ -775,7 +775,7 @@ direct_index(uint32_t b)
 static int
 add_block(ospfs_inode_t *oi)
 {
-    eprintk("adding block\n");
+    // eprintk("adding block\n");
 	// current number of blocks in file
 	uint32_t n = ospfs_size2nblocks(oi->oi_size);
 
@@ -800,7 +800,7 @@ add_block(ospfs_inode_t *oi)
         if(ind == -1)
         {
             oi->oi_direct[d] = allocated[0];
-            eprintk("direct: %d = %d\n",d,oi->oi_direct[d]);
+     //        eprintk("direct: %d = %d\n",d,oi->oi_direct[d]);
         }   
         else if (ind == 0)
         {
@@ -911,12 +911,14 @@ remove_block(ospfs_inode_t *oi)
     {
         if(ind == -1)
         {//delete dir
+    eprintk("removing dir\n");
             free_block(oi->oi_direct[d]);
             oi->oi_direct[d] = 0; 
         }   
         else if (ind == 0)
         {//delete ind->dir
-            free_block(((uint32_t *) oi->oi_indirect)[d]);
+    eprintk("removing ind dir\n");
+            free_block(((uint32_t *) ospfs_block(oi->oi_indirect))[d]);
             if(d == 0)
             {//delete ind
                 free_block(oi->oi_indirect);
@@ -932,15 +934,18 @@ remove_block(ospfs_inode_t *oi)
         if( ind < 0 || ind2 != 0)
             return -EIO;
         //delete ind2->ind->dir
+    eprintk("removing ind2 ind dir\n");
         free_block(((uint32_t *) ospfs_block(((uint32_t *) ospfs_block(oi->oi_indirect2))[ind]))[d]);
         if(d == 0)
         {
             //delete ind2->ind
-            free_block(((uint32_t *) oi->oi_indirect2)[ind]);
+    eprintk("removing ind2 ind\n");
+            free_block(((uint32_t *) ospfs_block(oi->oi_indirect2))[ind]);
         }
         if(ind == 0)
         {
             //delete ind2
+    eprintk("removing ind2\n");
             free_block(oi->oi_indirect2);
         }
     }
