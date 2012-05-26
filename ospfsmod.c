@@ -1147,6 +1147,7 @@ ospfs_write(struct file *filp, const char __user *buffer, size_t count, loff_t *
 {
     eprintk("attempting write\n");
 	ospfs_inode_t *oi = ospfs_inode(filp->f_dentry->d_inode->i_ino);
+
 	int retval = 0;
 	size_t amount = 0;
 
@@ -1165,10 +1166,15 @@ ospfs_write(struct file *filp, const char __user *buffer, size_t count, loff_t *
         eprintk("size is %d", oi->oi_size);
     if ( (*f_pos + count) > oi->oi_size )
     {
-        oi->oi_size = *f_pos + count;   //extra space for ending newline
+        change_size( oi, *f_pos + count);
         eprintk("size changed to %d\n", oi->oi_size);
     }
-    
+    eprintk("size is %d", oi->oi_size);
+    if ( filp->f_dentry->d_inode->i_ino == 0 )
+    {
+        return -EIO;
+    }
+
 	// Copy data block by block
         eprintk("f_pos=%d\n", *f_pos);
         eprintk("amount=%d\n", amount);
@@ -1180,12 +1186,13 @@ ospfs_write(struct file *filp, const char __user *buffer, size_t count, loff_t *
         
         eprintk("writing to block %d\n", blockno);
 		
+        /*
         if (blockno == 0) {
             eprintk("write error\n");
 			retval = -EIO;
 			goto done;
 		}
-
+        */
 		data = ospfs_block(blockno);
 
 		// Figure out how much data is left in this block to write.
@@ -1295,21 +1302,35 @@ create_blank_direntry(ospfs_inode_t *dir_oi)
 	/* EXERCISE: Your code here. */
 	//return ERR_PTR(-EINVAL); // Replace this line
     eprintk("creating blank directory entry\n");
-    ospfs_direntry_t *od;
     int add_return = 0;
-    size_t f_pos = dir_oi->oi_size;
+    size_t f_pos = 0;
+    ospfs_direntry_t *od;
+    int found_empty = 0;
+    //search for empty directory
+    for ( od = ospfs_inode_data( dir_oi, f_pos ); f_pos < dir_oi->oi_size; f_pos += sizeof( ospfs_direntry_t ))
+    {
+        od = ospfs_inode_data( dir_oi, f_pos );
+        eprintk("f_pos=%d, od->od_name=%s, od->od_ino=%d\n", f_pos, od->od_name, od->od_ino);
+        if ( od->od_ino == 0 )
+        {
+            eprintk("found empty direntry\n");
+            found_empty = 1;
+            break;      //found an empty entry
+        }
+    }
 
-    if ( dir_oi->oi_size % OSPFS_BLKSIZE == 0 )
+    if ( found_empty == 0 )
     {
         //allocate a new block
+        eprintk("creating new block\n");
         add_return = add_block( dir_oi );
         if ( add_return != 0 )
         {
             eprintk("add_block returned %d\n", add_return);
             return ERR_PTR(add_return);
         }
+        od = ospfs_inode_data( dir_oi, f_pos );
     }
-    od = ospfs_inode_data( dir_oi, f_pos );
     eprintk("created blank directory\n");
     return od;
 
@@ -1370,7 +1391,7 @@ ospfs_link(struct dentry *src_dentry, struct inode *dir, struct dentry *dst_dent
     }
     eprintk("checked already exists\n");
     dst_od->od_ino = src_dentry->d_inode->i_ino;
-    strncpy( dst_od->od_name, dst_dentry->d_name.name, OSPFS_MAXNAMELEN);
+    strncpy( dst_od->od_name, dst_dentry->d_name.name, dst_dentry->d_name.len );
     eprintk("incrementing link count\n");
     src_inode->oi_nlink++;
     
@@ -1423,14 +1444,14 @@ ospfs_create(struct inode *dir, struct dentry *dentry, int mode, struct nameidat
     {
         return -ENAMETOOLONG;
     }
-    if ( find_direntry( dir_oi, dentry->d_name.name, dentry->d_name.len != NULL) )
+    if ( find_direntry( dir_oi, dentry->d_name.name, dentry->d_name.len) != NULL )
     {
         return -EEXIST;
     }
     //find empty inode number
     for ( entry_ino = 0; entry_ino < ospfs_super->os_ninodes; entry_ino++ )
     {
-        if ( ospfs_inode(entry_ino)->oi_nlink == 0)
+        if ( (ospfs_inode(entry_ino)->oi_nlink) == 0)
         {
             break;
         }
@@ -1439,6 +1460,7 @@ ospfs_create(struct inode *dir, struct dentry *dentry, int mode, struct nameidat
     {
         return -ENOSPC;
     }
+    eprintk("using inode with ino=%d\n", entry_ino);
     //initialize empty directory entry and inode
     //inode
     inode = ospfs_inode(entry_ino);
@@ -1450,7 +1472,8 @@ ospfs_create(struct inode *dir, struct dentry *dentry, int mode, struct nameidat
     //directory entry
     direntry = create_blank_direntry(dir_oi);
     direntry->od_ino = entry_ino;
-    memcpy(direntry->od_name, dentry->d_name.name, dentry->d_name.len + 1);    
+    strncpy(direntry->od_name, dentry->d_name.name, dentry->d_name.len);
+    eprintk("name=%s, ino=%d\n", direntry->od_name, direntry->od_ino);     
 
     
 
